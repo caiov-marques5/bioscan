@@ -1,9 +1,10 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'api.dart';
 import 'models.dart';
 import 'result_screen.dart';
+import 'scan_screen.dart';
 
 void main() => runApp(const BioScanApp());
 
@@ -30,8 +31,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Web (Vercel): same origin, so API is reached at /v1/... with empty base.
-  // Native/desktop dev: local backend. Android emulator: use 10.0.2.2.
   final _baseUrl =
       TextEditingController(text: kIsWeb ? '' : 'http://127.0.0.1:8000');
   final _scan = ScanInput.sample();
@@ -39,6 +38,9 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _error;
 
   BioScanApi get _api => BioScanApi(_baseUrl.text.trim());
+
+  bool get _isIOS =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   Future<void> _run(Future<CompositionResult> Function() call) async {
     setState(() {
@@ -75,6 +77,20 @@ class _HomeScreenState extends State<HomeScreen> {
         ));
   }
 
+  void _openScan() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScanScreen(
+          api: _api,
+          sex: _scan.sex,
+          age: _scan.age,
+          weightKg: _scan.weightKg,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,8 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 labelText: 'URL do backend', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 16),
-          _num('Idade', _scan.age.toDouble(),
-              (v) => _scan.age = v.round()),
+          _num('Idade', _scan.age.toDouble(), (v) => _scan.age = v.round()),
           _num('Altura (cm)', _scan.heightCm, (v) => _scan.heightCm = v),
           _num('Peso (kg)', _scan.weightKg, (v) => _scan.weightKg = v),
           _num('Cintura (cm)', _scan.waistCm, (v) => _scan.waistCm = v),
@@ -105,9 +120,18 @@ class _HomeScreenState extends State<HomeScreen> {
               onChanged: (v) => setState(() => _scan.sex = v ?? 'male'),
             ),
           ]),
-          const SizedBox(height: 8),
-          const Text(
-              'Modo A: medidas simuladas (segmentos pré-preenchidos com amostra).',
+          const SizedBox(height: 12),
+          if (_isIOS) ...[
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E86AB)),
+              onPressed: _loading ? null : _openScan,
+              icon: const Icon(Icons.view_in_ar),
+              label: const Text('Escanear com câmera (LiDAR)'),
+            ),
+            const Divider(height: 32),
+          ],
+          const Text('Modo A: medidas simuladas (segmentos pré-preenchidos).',
               style: TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 8),
           FilledButton.icon(
